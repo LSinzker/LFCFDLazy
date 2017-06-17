@@ -85,8 +85,6 @@ avaliarExpBin :: Expressao -> Expressao -> (Int -> Int -> Int) -> Env -> ValorE
 avaliarExpBin e d op env = VInt (op ve vd)
  where
   (VInt ve) = avaliar e env
-  (VInt vd) = avaliar d env
-
---avaliarExpBin (Ref "x") (Valor 1) (+) [("x", EClosure (Valor 3))]
--- VInt ve = avaliar (Ref "x") [("x", ECLosure (Valor 3))]
---          pesquisar "x" [("x", ECLosure (Valor 3))]
+  (VInt vd) = avaliar d env'
+  env' = ((v, VInt ve):env)
+  Ref v = e

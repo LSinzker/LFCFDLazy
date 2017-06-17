@@ -1,6 +1,6 @@
 module LFCFDTestes where
 
-import LFCFD
+import LFCFDLazy
 
 import Test.HUnit
 
@@ -12,25 +12,6 @@ let1 = Let "x" (Valor 5) (Lambda "y" (Soma (Ref "x") (Ref "y")))
 aplicacao = Let "x" (Valor 5) (Aplicacao (Lambda "y" (Soma (Ref "x") (Ref "y"))) (Valor 3))
 
 let2 = Let "x" (Valor 3) (Soma(Ref "x")(Valor 1))
---avaliar (Let "x" (Valor 3) (Soma(Ref "x")(Valor 1))) []
---avaliar (Aplicacao (Lambda "x" (Soma(Ref "x")(Valor 1))) (Valor 3)) []
---    v = avaliacaoStrict (avaliar (Lambda "x" (Soma(Ref "x")(Valor 1))) [])
---    v = avaliacaoStrict (FClosure "x" (Soma(Ref "x")(Valor 1)) [] ) []
---    v = FClosure "x" (Soma(Ref "x")(Valor 1)) []
---    e = EClosure (Valor 3) env
---avaliar (Soma(Ref "x")(Valor 1)) [("x", EClosure (Valor 3) env):env']
---avaliarExpBin (Ref "x") (Valor 1) (+) [("x", EClosure (Valor 3) env): env']
---    (VInt ve) = avaliar (Ref "x") [("x", EClosure (Valor 3) env): env']
---              = pesquisar "x" [("x", EClosure (Valor 3) env): env']
---              = avaliacaoStrict (avaliar (EClosure (Valor 3) env) env)
---              = avaliacaoStrict (Valor 3)
---              = VInt 3
---           ve = 3
---    (VInt vd) = avaliar (Valor 1) [("x", EClosure (Valor 3) env): env']
---              = VInt 1
---           vd = 1
---VInt ((+) 3 1)
---VInt 4
 
 --teste imagem relativa ao exemplo no livro(cap. 8)
 let3 = Let "x" (Soma(Valor 4)(Valor 5)) (Let "y" (Soma(Ref "x")(Ref "x")) (Let "z" (Ref "y") (Let "x" (Valor 4) (Ref "z"))))
@@ -38,28 +19,12 @@ let3 = Let "x" (Soma(Valor 4)(Valor 5)) (Let "y" (Soma(Ref "x")(Ref "x")) (Let "
 let4 = Let "x" (Valor 3) (Ref "x")
 
 let5 = Let "x" (Valor 4) (Soma (Ref "x")(Ref "x"))
--- Outermost
---avaliar (Let "x" (Valor 4) (Soma (Ref "x")(Ref "x"))) []
---avaliar (Aplicacao (Lambda "x" (Soma(Ref "x")(Ref "x"))) (Valor 4)) []
---    v = avaliacaoStrict (avaliar (Lambda "x" (Soma(Ref "x")(Ref "x"))) [])
---    v = FClosure "x" (Soma(Ref "x")(Ref "x")) []
---    e = EClosure (Valor 4) []
---avaliar (Soma(Ref "x")(Ref "x")) [("x", EClosure (Valor 4)[]) [] ]
---avaliarExpBin (Ref "x") (Ref "x") (+) [("x", EClosure (Valor 4)[]) [] ]
---   (VInt ve) = avaliar (Ref "x") [("x", EClosure (Valor 4)[]) [] ]
---             = pesquisar "x" [("x", EClosure (Valor 4)[]) [] ]
---             = avaliacaoStrict (avaliar (EClosure (Valor 4) []) [] )
---             = avaliacaoStrict (Valor 4)
---             = VInt 4
---          ve = 4
---   (VInt vd) = avaliar (Ref "x") [("x", EClosure (Valor 4)[]) [] ]
---             = pesquisar "x" [("x", EClosure (Valor 4)[]) [] ]
---             = avaliacaoStrict (avaliar (EClosure (Valor 4) []) [] )
---             = avaliacaoStrict (Valor 4)
---             = VInt 4
---          vd = 4
---VInt ((+) 4 4)
---VInt 8
+
+let6 = Let "x" (Soma(Valor 3)(Valor 4)) ((Soma(Ref"x")(Ref"x")))
+--     let x = 2 in let y 4 + x in x
+let7 = Let "x" (Valor 2) (Let "y" (Soma(Valor 4)(Ref "x")) (Ref "x"))
+
+let8 = Let "x" (Subtracao (Valor 4)(Valor 1)) (Let "y" (Multiplicacao(Ref "x")(Ref "x")) (Ref "y"))
 
 teste1 = TestCase (assertEqual "avaliar 5" (VInt 5) (avaliar v5 []))
 
@@ -73,12 +38,21 @@ teste5 = TestCase (assertEqual "avaliar let x= 3 in x" (VInt 3) (avaliar let4 []
 
 teste6 = TestCase (assertEqual "avaliar let x=4 in x+x" (VInt 8) (avaliar let5 []))
 
+teste7 = TestCase (assertEqual "avaliar let x=3+4 in x+x" (VInt 14) (avaliar let6 []) )
+
+teste8 = TestCase (assertEqual "avaliar let x=2 in let y = 4 + x in x" (VInt 2) (avaliar let7 []) )
+
+teste9 = TestCase (assertEqual "avaliar let x=4-1 in let y=x*x in y" (VInt 9) (avaliar let8 []) )
+
 todosOsTestes = TestList [ teste1
                          , teste2
                          , teste3
                          , teste4
                          , teste5
                          , teste6
+                         , teste7
+                         , teste8
+                         , teste9
                          ]
 
 executarTestes = runTestTT todosOsTestes
