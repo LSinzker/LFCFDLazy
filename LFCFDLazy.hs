@@ -17,6 +17,8 @@ type Id = String
 
 type Env = [(Id, ValorE)]
 
+type DefredSub = [(Id, Expressao)]
+
 -- Nessa versao da linguagem, o interpretador precisa
 -- retornar valores de um tipo especial, ValorE, que
 -- podem ser ou um valor inteiro (VInt Int) ou um
@@ -26,7 +28,6 @@ type Env = [(Id, ValorE)]
 --
 -- let x = 5 in (\y -> x + y) deve retornar o
 -- closure Closure y (x + y) [(x,5)]
-
 
 data ValorE = VInt Int
             | FClosure Id Expressao Env
@@ -42,6 +43,8 @@ data Expressao = Valor Int
                | Ref Id
                | Lambda Id Expressao
                | Aplicacao Expressao Expressao
+               | If0 Expressao Expressao Expressao
+               | Rec Id Expressao Expressao
  deriving(Show, Eq)
 
 -- | O interpretador da linguagem LFCFD
@@ -52,7 +55,7 @@ data Expressao = Valor Int
 -- discutido anteriormente.
 
 avaliar :: Expressao -> Env -> ValorE
-avaliar (Valor n)            _ = VInt n
+avaliar (Valor n)             _ = VInt n
 avaliar (Soma e d)          env = avaliarExpBin e d (+) env
 avaliar (Subtracao e d)     env = avaliarExpBin e d (-) env
 avaliar (Multiplicacao e d) env = avaliarExpBin e d (*) env
@@ -67,6 +70,29 @@ avaliar (Aplicacao e1 e2)   env =
   in case v of
      (FClosure a c env') -> avaliar c ((a, e):env')
      otherwise -> error "Tentando aplicar uma expressao que nao eh uma funcao anonima"
+
+-- let x = 5 in (\y -> x + y) deve retornar o
+-- closure Closure y (x + y) [(x,5)]
+
+avaliar (If0 v e d)         env
+  | avaliar v env == VInt 0 = avaliar e env
+  | otherwise = avaliar d env
+--          ID Exp Valor
+
+avaliar (Rec nome e1 e2) env =
+  let
+    v = avaliacaoStrict (avaliar e1 env)
+    e = EClosure e2 env
+    env2 = (searchApp nome v env)++env
+  in case v of
+    (FClosure a c env') -> avaliar c ((a, e):env2)
+    otherwise -> error "Tentando aplicar uma expressao que nao eh uma funcao anonima"
+
+searchApp :: Id -> ValorE -> Env -> Env
+searchApp n v [] = [(n, v)]
+searchApp n v ((i,e):xs)
+ | n == i = []
+ | otherwise = searchApp n v xs
 
 avaliacaoStrict :: ValorE -> ValorE
 avaliacaoStrict (EClosure e env) = avaliacaoStrict (avaliar e env)
@@ -86,5 +112,6 @@ avaliarExpBin e d op env = VInt (op ve vd)
  where
   (VInt ve) = avaliar e env
   (VInt vd) = avaliar d env'
-  env' = ((v, VInt ve):env)
-  Ref v = e
+  env' = case e of
+    (Ref v) -> ((v, VInt ve):env)
+    otherwise -> env
