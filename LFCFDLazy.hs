@@ -110,8 +110,8 @@ pesquisar v ((i,e):xs)
 avaliarExpBin :: Expressao -> Expressao -> (Int -> Int -> Int) -> Env -> ValorE
 avaliarExpBin e d op env = VInt (op ve vd)
  where
-  (VInt ve) = avaliar e env
-  (VInt vd) = avaliar d env'
+  (VInt ve) = avaliacaoStrict (avaliar e env)
+  (VInt vd) = avaliacaoStrict (avaliar d env')
   env' = case e of
     (Ref v) -> ((v, VInt ve):env)
     otherwise -> env
