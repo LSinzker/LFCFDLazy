@@ -12,7 +12,7 @@
 
 \title{Implementa\c c\~{a}o de Recur\c c\~{a}o e avalia\c c\~{a}o \textit{Lazy} em Haskell}
 
-\author{Luisa Sinzker Fantin MATR\'{I}CULA\\
+\author{Luisa Sinzker Fantin, 14/0151893\\
         Jo\~{a}o Pedro Silva Sousa, 15/0038381\\
         Rafael Oliveira de Souza, 15/0081537\\
 }
