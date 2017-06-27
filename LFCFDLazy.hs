@@ -61,7 +61,7 @@ avaliar (Subtracao e d)     env = avaliarExpBin e d (-) env
 avaliar (Multiplicacao e d) env = avaliarExpBin e d (*) env
 avaliar (Divisao e d)       env = avaliarExpBin e d div env
 avaliar (Let v e c)         env = avaliar (Aplicacao (Lambda v c) e) env
-avaliar (Ref v)             env = pesquisar v env
+avaliar (Ref v)             env = avaliacaoStrict (pesquisar v env)
 avaliar (Lambda a c)        env = FClosure a c env
 avaliar (Aplicacao e1 e2)   env =
   let
@@ -103,7 +103,7 @@ avaliacaoStrict e = e
 pesquisar :: Id -> Env -> ValorE
 pesquisar v [] = error "Variavel nao declarada."
 pesquisar v ((i,e):xs)
- | v == i = avaliacaoStrict e --primeira alteração eficaz no código (força a avaliação do EClosure)
+ | v == i = e --primeira alteração eficaz no código (força a avaliação do EClosure)
  | otherwise = pesquisar v xs
 
 -- | Avalia uma expressao binaria.
