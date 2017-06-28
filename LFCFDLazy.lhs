@@ -4,15 +4,20 @@
 
 \usepackage[utf8]{inputenc}
 \usepackage[brazil]{babel}
+\usepackage{color}
 \usepackage{fontenc}
 \usepackage{biblatex}
 \usepackage{csquotes}
+\usepackage{verbatim}
+\usepackage{listings}
 \usepackage[nottoc]{tocbibind}
+
+
 \addbibresource{references.bib}
 
 \title{Implementa\c c\~{a}o de Recur\c c\~{a}o e avalia\c c\~{a}o \textit{Lazy} em Haskell}
 
-\author{Luisa Sinzker Fantin MATR\'{I}CULA\\
+\author{Luisa Sinzker Fantin, 14/0151893\\
         Jo\~{a}o Pedro Silva Sousa, 15/0038381\\
         Rafael Oliveira de Souza, 15/0081537\\
 }
@@ -82,6 +87,8 @@ recurs\~{a}o \cite{Shriram}.
 
 \begin{code}
     module LFCFDLazy where
+
+    --import Test.Unit
 \end{code}
 
 \subsection{Defni\c c\~{a}o dos tipos e estruturas}
@@ -116,10 +123,10 @@ recurs\~{a}o \cite{Shriram}.
 
 \end{code}
 
-O tipo \emph{Id} \'{e} apenas uma renomea\c c\~{a}o para um identificador, que
-pode ser de uma vari\'{a}vel ou de uma fun\c c\~{a}o recursiva. O tipo \emph{Env}
+O tipo \texttt{Id} \'{e} apenas uma renomea\c c\~{a}o para um identificador, que
+pode ser de uma vari\'{a}vel ou de uma fun\c c\~{a}o recursiva. O tipo \texttt{Env}
 \'{e} o ambiente de mapeamento (tupla) entre os identificadores e suas
-respectivas express\~{o}es associadas. O tipo \emph{DefredSub} \'{e} o ambiente
+respectivas express\~{o}es associadas. O tipo \texttt{DefredSub} \'{e} o ambiente
 de substitui\c c\~{o}es postergadas que, analogamente mapeiam identificadores
 \`{a} express\~{o}es por\'{e}m, com a diferen\c ca que elas ainda n\~{a}o
 foram avaliadas.
@@ -173,7 +180,7 @@ de identificadores e fun\c c\~{o}es recursivas, respectivamente.
 \end{code}
 
 A fun\c c\~{a}o \emph{avaliacaoStrict :: ValorE $\rightarrow$ ValorE} realiza uma
-avalia\c c\~{a}o de um \emph{EClosure} (closure de uma express\~{a}o). Caso o
+avalia\c c\~{a}o de um \texttt{EClosure} (closure de uma express\~{a}o). Caso o
 \textit{closure} a ser avaliado por essa fun\c c\~{a}o seja um \textit{closure}
 de uma fun\c c\~{a}o ou de um valor inteiro, a fun\c c\~{a} simplesmente retorna a
 pr\'{o}pria express\~{a}o.
@@ -186,7 +193,7 @@ que se deseja calcular, o operador e o ambiente de mapeamento de identificadores
 e express\~{o}es j\'{a} avaliadas.
 
 O m\'{e}todo de avalia\c c\~{a}o \textit{sharing} \'{e} implementado na senten\c c\~{a}
-\emph{case} dessa fun\c c\~{a}o: caso a express\~{a}o disposta do lado direito
+\texttt{case} dessa fun\c c\~{a}o: caso a express\~{a}o disposta do lado direito
 da opera\c c\~{a}o seja igual \`{a} express\~{a}o do lado esquerdo, ela n\~{a}o
 \'{e} avaliada uma segunda vez, \'{e} realizada a recupera\c c\~{a}o da avalia\c c\~{a}o
 da express\~{a}o do lado direto no ambiente \cite{Dolstra&Visser}.
@@ -197,37 +204,35 @@ da express\~{a}o do lado direto no ambiente \cite{Dolstra&Visser}.
 
 \begin{code}
 
-avaliar :: Expressao -> Env -> ValorE
-avaliar (Valor n)             _ = VInt n
-avaliar (Soma e d)          env = avaliarExpBin e d (+) env
-avaliar (Subtracao e d)     env = avaliarExpBin e d (-) env
-avaliar (Multiplicacao e d) env = avaliarExpBin e d (*) env
-avaliar (Divisao e d)       env = avaliarExpBin e d div env
-avaliar (Let v e c)         env = avaliar (Aplicacao (Lambda v c) e) env
-avaliar (Ref v)             env = avaliacaoStrict (pesquisar v env)
-avaliar (Lambda a c)        env = FClosure a c env
-avaliar (Aplicacao e1 e2)   env =
-    let
-        v = avaliacaoStrict (avaliar e1 env)
-        e = EClosure e2 env
-    in case v of
-        (FClosure a c env') -> avaliar c ((a, e):env')
-        otherwise -> error "Tentando aplicar uma expressao" ++
-                           "que nao eh uma funcao anonima"
+    avaliar :: Expressao -> Env -> ValorE
+    avaliar (Valor n)             _ = VInt n
+    avaliar (Soma e d)          env = avaliarExpBin e d (+) env
+    avaliar (Subtracao e d)     env = avaliarExpBin e d (-) env
+    avaliar (Multiplicacao e d) env = avaliarExpBin e d (*) env
+    avaliar (Divisao e d)       env = avaliarExpBin e d div env
+    avaliar (Let v e c)         env = avaliar (Aplicacao (Lambda v c) e) env
+    avaliar (Ref v)             env = avaliacaoStrict (pesquisar v env)
+    avaliar (Lambda a c)        env = FClosure a c env
+    avaliar (Aplicacao e1 e2)   env =
+        let
+            v = avaliacaoStrict (avaliar e1 env)
+            e = EClosure e2 env
+        in case v of
+            (FClosure a c env') -> avaliar c ((a, e):env')
+            otherwise -> error "Tentando aplicar uma expressao que nao eh uma funcao anonima"
 
-avaliar (If0 v e d)         env
-    | avaliar v env == VInt 0 = avaliar e env
-    | otherwise = avaliar d env
+    avaliar (If0 v e d)         env
+        | avaliar v env == VInt 0 = avaliar e env
+        | otherwise = avaliar d env
 
-avaliar (Rec nome e1 e2) env =
-    let
-        v = avaliacaoStrict (avaliar e1 env)
-        e = EClosure e2 env
-        env2 = (searchApp nome v env)++env
-    in case v of
-        (FClosure a c env') -> avaliar c ((a, e):env2)
-        otherwise -> error "Tentando aplicar uma expressao" ++
-                           "que nao eh uma funcao anonima"
+    avaliar (Rec nome e1 e2) env =
+        let
+            v = avaliacaoStrict (avaliar e1 env)
+            e = EClosure e2 env
+            env2 = (searchApp nome v env)++env
+        in case v of
+            (FClosure a c env') -> avaliar c ((a, e):env2)
+            otherwise -> error "Tentando aplicar uma expressao que nao eh uma funcao anonima"
 
 \end{code}
 
@@ -236,93 +241,149 @@ e necess\'{a}rias para o correto funcionamento da estrat\'{e}gia de
 avalia\c c\~{a}o \textit{lazy} e suporte a chamadas de fun\c c\~{o}es recursivas.
 
 As principais modifica\c c\~{o}es relativas \`{a} estrat\'{e}gia de avalia\c c\~{a}o
-\textit{lazy} foram feitas na fun\c c\~{a}o \emph{avaliarExpBin}, j\'{a} que a
+\textit{lazy} foram feitas na fun\c c\~{a}o \texttt{avaliarExpBin}, j\'{a} que a
 maioria das express\~{o}es s\~{a}o reduzidas \`{a}s opera\c c\~{o}es b\'{a}sicas
 da aritm\'{e}tica, conforme detalhado na se\c c\~{a}o \ref{sec:fun_aux}.
 
 
-\subsection{Testes}
-------------------------------------------  Avalia\c c\~{a}o  Recursiva ------------------------------\\
-\\Exemplo 1 : {avaliar} (\Conid{Rec}\;\Varid{a}\;\Varid{nome}\;\Varid{e1}\; \Varid{e2})\;\Varid{[  ]}\;{}\\
-\\{avaliar}(\Conid{Rec}\;\Varid{"fac"}\;(\Varid{Lambda}\;\Varid{"x"}\;\Varid({If0}(\Conid{Ref "x"}\;)(\Varid{Valor 1} \;)(\Varid{Multiplica\c c\~{a}o}\;(\Varid{Ref "x"}\;)\\
-(\Conid{Rec}\;\Varid{"fac"}\;(\Conid{Rec}\;\Varid{"fac"}\;)(\Varid{Subtra\c c\~{a}o}\;(\Varid{Ref "x"}\;)(\Varid{Valor 1}\;))))))(\Varid{Valor 4}\;))\\
+\section{Testes}
 
- Uso de uma expresão Rec(Recursiva) aplica recursividade em uma fun\c c\~{a}o fac(Fatorial).\\
- Uma expressão Rec espera um nome e duas expressões(e1 ,e2), a primeira expressão(e1) define o formato da fun\c c\~{a}o e a segunda expressão(e2) representa o argumento que ser\'{a} aplicado na fun\c c\~{a}o.
-\\{Avalia\c c\~{a}o de uma expressão Rec dado um ambiente vazio.}\\
-\\nome = "fac"
-\\e2 = (Valor 4) 
-\\e1 = (\Varid{Lambda}\;\Varid{"x"}\;\Varid({If0}(\Conid{Ref "x"}\;)(\Varid{Valor 1} \;)(\Varid{Multiplica\c c\~{a}o}\;(\Varid{Ref "x"}\;)\\ (\Conid{Rec}\;\Varid{"fac"}\;(\Conid{Rec}\;\Varid{"fac"}\;)(\Varid{Subtra\c c\~{a}o}\;(\Varid{Ref "x"}\;)(\Varid{Valor 1}\;))))))\\
+\subsection{Recurs\~{a}o}
 
- \\Primeiramente, \text{\tt\char34 e1\char34} \'{e} avaliado e a expressão (Lambda "x" (If0 (Ref "x") (Valor 1) (Multiplica\c c\~{a}o(Ref "x") (Rec "fac" (Ref "fac") (Subtra\c c\~{a}o(Ref"x")(Valor 1)))))) \'{e} transformada em um ValorE.
-  \\A avalia\c c\~{a}o de \text{\tt\char34 e1\char34} em um ambiente vazio retorna o seguinte FClosure : FClosure "x" (If0 (Ref "x") (Valor 1) (Multiplica\c c\~{a}o (Ref "x") (Rec "fac" (Ref "fac") (Subtra\c c\~{a}o (Ref "x") (Valor 1))))) [].
- \\\text{\tt\char34 e2\char34} \'{e} transformado em um Eclosure de \text{\tt\char34 e2\char34} com o ambiente original: vazio.
- \\O ambiente \'{e} incrementado com o nome e o corpo da fun\c c\~{a}o usados na avalia\c c\~{a}o Rec, no caso, a fun\c c\~{a}o fac.
- \\O ambiente incrementado \'{e} igual [("fac", (FClosure "x" (If0 (Ref "x") (Valor 1) (Multiplica\c c\~{a}o (Ref "x") (Rec "fac" (Ref "fac") (Subtra\c c\~{a}o (Ref "x") (Valor 1)))))))].
- \\No caso da avalia\c c\~{a}o de \text{\tt\char34 e1\char34} ser um Fclosure o ambiente \'{e} incrementado com um Id e o seu respectivo ValorE.
-\\Para que uma avalia\c c\~{a}o de uma expressão Rec não entre em loop infinito \'{e} necess\'{a}rio que em seu corpo exista uma expressão If0, a expressão If0 determina uma condi\c c\~{a}o de parada para a expressão Rec, nesse caso, a condi\c c\~{a}o de parada \'{e} Valor Int = Valor 1.
- \\A expressão Rec \'{e} chamada enquanto a avalia\c c\~{a}o de (Subtra\c c\~{a}o(Ref"x")(Valor 1)) não satisfazer a condi\c c\~{a}o de parada da expressão If0.
- Vão sendo computados os valores obtidos em cada chamada recursiva, assim o ValorE de resposta para esse teste \'{e}: VInt 24. Que representa as computa\c c\~{o}es 4 * 3 * 2 * 1.\\
-\\ Exemplo 2 : avaliar (Rec nome e1 e2) amb\\
-\\let amb = [("y", VInt 1)]
-\\\\{avaliar}(\Conid{Rec}\;\Varid{"fac"}\;(\Varid{Lambda}\;\Varid{"x"}\;\Varid({If0}(\Conid{Ref "x"}\;)(\Varid{Ref "y"} \;)(\Varid{Multiplica\c c\~{a}o}\;(\Varid{Ref "x"}\;)\\
-(\Conid{Rec}\;\Varid{"fac"}\;(\Conid{Rec}\;\Varid{"fac"}\;)(\Varid{Subtra\c c\~{a}o}\;(\Varid{Ref "x"}\;)(\Varid{Ref "y"}\;))))))(\Varid{Valor 4}\;))  amb\\
+\textbf{Exemplo 1:} com ambiente vazio
 
-\\Uso de uma expresão Rec(Recursiva) aplica recursividade em uma fun\c c\~{a}o fac(Fatorial).
-\\Avalia\c c\~{a}o de uma expressão Rec dado um ambiente [("y", VInt 1)].
-\\Uma expressão Rec espera um nome e duas expressões(e1 ,e2), a primeira expressão(e1) define o formato da fun\c c\~{a}o e a segunda expressão(e2) representa o argumento que ser\'{a} aplicado na fun\c c\~{a}o.\\
-\\nome = "fac"
-\\e2 = (Valor 4) 
-\\e1 = (\Varid{Lambda}\;\Varid{"x"}\;\Varid({If0}(\Conid{Ref "x"}\;)(\Varid{Ref "y"} \;)(\Varid{Multiplica\c c\~{a}o}\;(\Varid{Ref "x"}\;) \\(\Conid{Rec}\;\Varid{"fac"}\;(\Conid{Rec}\;\Varid{"fac"}\;)(\Varid{Subtra\c c\~{a}o}\;(\Varid{Ref "x"}\;)(\Varid{Ref "y"}\;))))))\\
+Pode-se definir uma fun\c c\~{a}o fatorial dessa maneira:
+\begin{verbatim}
+-- definicao da funcao fatorial
+base = Valor 1
+recursao = Subtracao (Ref "x") (Valor 1)
 
-\\Primeiramente, \text{\tt\char34 e1\char34} \'{e} avaliado e a expressão (Lambda "x" (If0 (Ref "x") (Ref "y") (Multiplica\c c\~{a}o(Ref "x") (Rec "fac" (Ref "fac") (Subtra\c c\~{a}o(Ref"x")(Ref "y")))))) \'{e} transformada em um ValorE
- \\A avalia\c c\~{a}o de \text{\tt\char34 e1\char34} em um ambiente amb retorna o seguinte FClosure : FClosure "x" (If0 (Ref "x") (Ref "y") (Multiplica\c c\~{a}o (Ref "x") (Rec "fac" (Ref "fac") (Subtra\c c\~{a}o (Ref "x") (Ref "y"))))) amb
- \\\text{\tt\char34 e2\char34} \'{e} transformado em um Eclosure de \text{\tt\char34 e2\char34} com o ambiente original: [("y", VInt 1)].
- \\O ambiente \'{e} incrementado com o nome e o corpo da fun\c c\~{a}o usados na avalia\c c\~{a}o Rec, no caso, a fun\c c\~{a}o fac.
- \\No caso da avalia\c c\~{a}o de \text{\tt\char34 e1\char34} ser um Fclosure o ambiente \'{e} incrementado com um Id e o seu respectivo ValorE.
- \\O ambiente incrementado \'{e} igual [("fac", (FClosure "x" (If0 (Ref "x") (Ref "y") (Multiplica\c c\~{a}o (Ref "x") (Rec "fac" (Ref "fac") (Subtra\c c\~{a}o (Ref "x") (Ref "y")))))), ("y", VInt 1))]
-\\Para que uma avalia\c c\~{a}o de uma expressão Rec não entre em loop infinito \'{e} necess\'{a}rio que em seu corpo exista uma expressão If0, a expressão If0 determina uma condi\c c\~{a}o de parada para a expressão Rec, nesse caso, a condi\c c\~{a}o de parada \'{e} Valor Int = Valor 1.
- \\A expressão Rec \'{e} chamada enquanto a avalia\c c\~{a}o de (Subtra\c c\~{a}o(Ref"x")(Ref "y")) não satisfazer a condi\c c\~{a}o de parada da expressão If0.
- Vão sendo computados os valores obtidos em cada chamada recursiva, assim o ValorE de resposta para esse teste \'{e}: VInt 24.\\
+fac_fail = (Multiplicacao (Ref "x") (Rec "fac" (Ref "fac") recursao))
+
+fac_if = If0 (Ref "x") base fac_fail
+
+fac_fun = Lambda "x" fac_if
+
+def_fac = Rec "fac" fac_fun
+
+\end{verbatim}
+
+A recurs\~{a}o \'{e} utilizada para calcular o fatorial de um valor. Como
+definido na constru\c c\~{a}o do tipo \textit{Expressao}, uma express\~{a}oo
+recurisva possui um nome (identificador) e duas express\~{o}es, chamadas $e_1$
+e $e_2$. A express\~{a}o $e_1$ define a fun\c c\~{a}o recursiva e a express\~{a}o
+$e_2$ \'{e} o argumento destino \`{a} fun\c c\~{a}o.
+
+\begin{verbatim}
+e1 = def_fac
+e2 = Valor 4
+
+avaliar (def_fac e2) [ ]
+
+\end{verbatim}
+
+Primeiramente, $e_1$ \'{e} avaliado e a express\~{a}o
+\texttt{Lambda "x" (If0 (Ref "x") (Valor 1) (Multiplicacao (Ref "x") (Rec "fac" (Ref "fac") (Subtracao (Ref "x") (Valor 1)))))}
+\'{e} transformada em um \texttt{ValorE}.
+
+A avalia\c c\~{a}o de $e_1$ em um ambiente vazio retorna o \textit{closure}
+\texttt{FClosure "x" (If0 (Ref "x") (Valor 1) (Multiplicacao (Ref "x") (Rec "fac" (Ref "fac") (Subtracao (Ref "x") (Valor 1))))) [ ]}, enquanto
+$e_2$ \'{e} transformado em um \textit{closure} \texttt{EClosure e2 [ ]}.
+
+O ambiente \'{e} enriquecido com o nome e o corpo da fun\c c\~{a}o utilizados
+na avalia\c c\~{a}o de \texttt{Rec "fac"}:
+\texttt{["fac", (FClosure "x" (If0 (Ref "x") (Valor 1) (Multiplicacao (Ref "x") (Rec "fac" (Ref "fac") (Subtracao (Ref "x") (Valor 1))))))]}.
+
+Caso a avalia\c c\~{a}o de $e_1$ seja um \texttt{FClosure}, o ambiente
+\'{e} enriquecido com o identificador e seu respectivo \texttt{ValorE}.
+
+Uma fun\c c\~{a}o recursiva, por possui normalmente um ou mais casos base,
+seguidos da aplica\c c\~{a}o da recurs\~{a}o, deve conter uma condi\c c\~{a}o
+de parada para que n\~{a}o ocorra recurs\~{o}es infinitas; essa condi\c c\~{a}o
+de parada \'{e} determinada pela express\~{a}o \texttt{If0}.
+
+A avalia\c c\~{a}o da express\~{a}o \texttt{Rec} \'{e} executada at\'{e} que
+a express\~{a}o \texttt{Subtracao (Ref "x") (Valor 1)} seja equivalente
+ao \texttt{Valor 0}, ou \texttt{VInt 0} (condi\c c\~{a}o de parada).
+
+Os valores obtidos a cada chamada da recus\~{a}o s\~{a}o computados
+e conclui-se que, para o caso de teste apresentado, o resultado ser\'{a}
+um \texttt{VInt 24} ($4 \times 3 \times 2 \times 1$).
 
 
-------------------------------------------  Avalia\c c\~{a}o  Lazzy-------------------------------\\
- \\Exemplo 1 : avaliar (Let v e c) []\\
+\textbf{Exemplo 2:} com ambiente enriquecido
 
-\\\\{avaliar}(\Conid{Let}\;\Varid{"x"}\;(\Varid{Valor 3})\;(\Varid{Soma}\;(\Conid{Ref "x"}\;)(\Varid{Valor 1})))[]{}\\
+Supondo o ambiente populado \texttt{amb = [("y", VInt 5)]}:
 
- \\Uma expressão Let espera um Id(v) e duas expressões(e ,c), a primeira expressão(e) ser\'{a} associada com o Id(v) e a segunda expressão(c) representa o corpo de uma expressão let a qual ser\'{a} combinado \`{a} expressão e.
- \\Avalia\c c\~{a}o de uma expressão Let dado um ambiente vazio.\\
- \\v = "x"
- \\e = (Valor 3)
- \\c = (Soma(Ref "x")(Valor 1))\\
+\begin{verbatim}
+amb = [("y", VInt 5)]
 
- \\Primeiramente, a avalia\c c\~{a}o let \'{e} transformada em uma aplica\c c\~{a}o de uma expressão(e) = (Valor 3) em uma expressão Lambda (Lambda v c), em um ambiente vazio.
-  \\A avalia\c c\~{a}o de uma expressão Lambda (Lambda v c) em um ambiente vazio retorna um Fclosure v c e o ambiente original.
- \\\text{\tt\char34 e\char34} \'{e} transformado em um Eclosure de \text{\tt\char34 e\char34} com o ambiente original: vazio.
- \\Como a avalia\c c\~{a}o de (Lambda "x" (Soma (Ref "x") (Valor 1))) retorna um Fclosuse e o ambiente \'{e} incrementado com "x" e VInt 3.
- \\O ambiente incrementado \'{e} igual [("x", VInt 3)].
- \\Computa o resultado de (Soma (Ref "x") (Valor 1)), busca uma referência de "x" no novo ambiente e substitui-se (Ref "x") por VInt 3.
- \\Retorna VInt 4 como resultado.\\
- \\Exemplo 2 : avaliar (Let v e c) amb\\
- \\let amb = [("y", VInt 2)]\\
+e2 = Ref "y"
 
-\\\\{avaliar}(\Conid{Let}\;\Varid{"x"}\;(\Varid{Valor 3})\;(\Varid{Soma}\;(\Conid{Ref "x"}\;)(\Varid{Ref "y"}))) amb{}\\
+avaliar (def_fac e2) amb
+\end{verbatim}
 
- \\Avalia\c c\~{a}o de uma expressão Let dado um ambiente = [("y", VInt 2)].
- \\Uma expressão Let espera um Id(v) e duas expressões(e ,c), a primeira expressão(e) ser\'{a} associada com o Id(v).
- e a segunda expressão(c) representa o corpo de uma expressão let a qual ser\'{a} combinado \`{a} expressão (e).\\
- \\v = "x"
- \\e = (Valor 3)
- \\c = (\Varid{Soma}\;(\Conid{Ref "x"}\;)(\Varid{Ref "y"})))\\
+Analogamente, om o ambiente enriquecido, a avalia\c c\~{a}o do fatorial de
+\texttt{Ref "y"} \'{e} calculado utilizando o ambiente declarado.
 
- \\Primeiramente, a avalia\c c\~{a}o let \'{e} transformada em uma aplica\c c\~{a}o de uma expressão(e) = (Valor 3) em uma expressão Lambda (Lambda v c), em um ambiente [("y", VInt 2)].
- \\A avalia\c c\~{a}o de uma expressão Lambda (Lambda v c) em um ambiente retorna um Fclosure v c e o ambiente original.
- \text{\tt\char34 e\char34}  \'{e} transformado em um Eclosure de \text{\tt\char34 e\char34}  com o ambiente original: [("y", VInt 2)].
- \\Como a avalia\c c\~{a}o de (Lambda "x" (Soma (Ref "x") (Ref "y"))) retorna um Fclosuse e o ambiente \'{e} incrementado com "x" e VInt 3.
- \\O ambiente incrementado \'{e} igual [("x", VInt 3), ("y", VInt 2)].
- \\Computa o resultado de (Soma (Ref "x") (Ref "y")), busca uma referência de "x" no novo ambiente e substitui-se (Ref "x") por VInt 3 e (Ref "y") por VInt 2.
- \\Retorna VInt 5 como resultado.
+O \textit{closure} resultante da avalia\c c\~{a}o de $e_1$ permanece o
+mesmo, com a diferen\c ca na avalia\c c\~{a}o de $e_2$:
+\texttt{EClosure (Ref "y") [("y", VInt 5)]}.
+
+Ao final, o resultado retornado \'{e} \texttt{VInt 120}
+($5 \times 4 \times 3 \times 2 \times 1$).
+
+
+\subsection{Avalia\c c\~{a}o \textit{lazy}}
+
+Para demonstrar a avalia\c c\~{a}o \textit{lazy}, a express\~{a}o
+\texttt{avaliar Let "x" (Soma(Valor 3)(Valor 4)) ((Soma(Ref"x")(Ref"x"))) []}
+foi avaliada seguindo o interpretador aqui apresentado. A altera\c c\~{a}o
+no interpretador original que evita a reavalia\c c\~{a}o de uma express\~{a}o
+j\'{a} previamente avaliada \'{e} apresentada a seguir:
+
+\begin{verbatim}
+avaliarExpBin :: Expressao -> Expressao -> (Int -> Int -> Int) -> Env -> ValorE
+    avaliarExpBin e d op env = VInt (op ve vd)
+        where
+            (VInt ve) = avaliacaoStrict (avaliar e env)
+            (VInt vd) = avaliacaoStrict (avaliar d env')
+            env' = case e of
+                (Ref v) -> ((v, VInt ve):env)
+                otherwise -> env
+\end{verbatim}
+
+Ap\'{o}s uma vari\'{a}vel ser computada, seu valor \'{e} armazenado no
+"ambiente", dessa forma, caso ela apare\c ca novamente, o interpretador
+j\'{a} ter\'{a} o resultado final avaliado. A demonstra\c c\~{a}o
+est\'{a} mostrada a seguir:
+
+\begin{verbatim}
+avaliar Let "x" (Soma(Valor 3)(Valor 4)) ((Soma(Ref"x")(Ref"x"))) []
+avaliar (Aplicacao (Lambda "x" (Soma(Ref "x")(Ref "x"))) (Soma(Valor 3)(Valor 4))) []
+   v = avaliacaoStrict (avaliar (Lambda "x" (Soma(Ref "x")(Ref "x"))) [])
+   v = FClosure "x" (Soma(Ref "x")(Ref "x")) []
+   e = EClosure (Soma(Valor 3)(Valor 4)) []
+avaliar (Soma(Ref "x")(Ref "x")) [(x, EClosure (Soma(Valor 3)(Valor 4))):[]]
+avaliarExpBin (Ref "x") (Ref "x") (+) [(x, EClosure (Soma(Valor 3)(Valor 4)))]
+        env = [(x, EClosure (Soma(Valor 3)(Valor 4)))]
+  (VInt ve) = avaliar (Ref "x") [(x, EClosure (Soma(Valor 3)(Valor 4)))]
+            = pesquisar x [(x, EClosure (Soma(Valor 3)(Valor 4)))]
+            = avaliacaoStrict (EClosure (Soma(Valor 3)(Valor 4)) env)
+            = avaliacaoStrict (avaliar Soma(Valor 3)(Valor 4) env)
+            = avaliacaoStrict (VInt 7)
+            = VInt 7
+         ve = 7
+       env' = [(x, EClosure (Valor 7)):(x, EClosure (Soma(Valor 3)(Valor 4)))]
+  (VInt vd) = avaliar (Ref "x") [(x, EClosure (Valor 7)):(x, EClosure (Soma(Valor 3)(Valor 4)))]
+            = pesquisar x [(x, EClosure (Valor 7) [] ):env]
+            = avaliacaoStrict (VInt 7)
+            = VInt 7
+         vd = 7
+VInt ((+) 7 7)
+VInt 14
+
+\end{verbatim}
 
 
 \printbibliography
